@@ -6,6 +6,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.RecursiveTask;
+import java.util.concurrent.TimeUnit;
 
 import preference.csv.optimize.LevelManager;
 import preference.exception.PreferenceException;
@@ -38,7 +39,38 @@ public class SBFork {
 		for(int i = 0; i < processes; ++i) threads[i] = new LSDWorker(i, (FlatLevelCombination) anti.next());
 		for(int i = 0; i < processes; ++i) forkPool.submit(threads[i]);
 		
-		while(forkPool.getQueuedSubmissionCount() > 0 || !forkPool.isQuiescent()) Thread.sleep(10);
+		while(forkPool.getQueuedSubmissionCount() > 0 || !forkPool.isQuiescent()) 
+		{
+			Thread.sleep(10);
+			FlatLevelCombination[] a = null, b = null;
+			
+			int queueSize;
+			do
+			{
+				
+			    synchronized(localSkylineQueue) 
+			    {
+			    	queueSize = localSkylineQueue.size();
+			    	if(queueSize > 1) System.out.println("Found Queue-Size: " + queueSize);
+			    	if(queueSize > 1)
+			    	{
+			    		a = localSkylineQueue.poll();
+			    		b = localSkylineQueue.poll();
+			    	}
+			    	
+			    }
+			    
+			    if(a != null) forkPool.submit(new SkylineMergeWorker(a, b));
+			}
+			while(queueSize > 3);
+		}
+		forkPool.shutdown();
+		forkPool.awaitTermination(1, TimeUnit.MINUTES);
+		
+		System.out.println("Final Queue-Size: " + localSkylineQueue.size());
+		if(localSkylineQueue.size() == 2) return SBBase.combineLocalSkyline(localSkylineQueue.poll(), localSkylineQueue.poll());
+		
+		
 		//forkPool.awaitTermination(2, TimeUnit.MINUTES);
 		//forkPool.getRunningThreadCount();
 		//forkPool.
@@ -114,6 +146,7 @@ public class SBFork {
 						while(nnzero.threadCount < processes)
 							nnzero.wait();
 					}
+					System.out.println("nn: " + nnzero.neighbor);
 				}
 				
 			
@@ -122,8 +155,8 @@ public class SBFork {
 					final LSDAbstractTree.DirectoryNode dn = n.getParent(); --depth;
 					if(dn == null) break;
 					if(dn.right instanceof LSDAbstractTree.BucketNode) 
-						forkPool.submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.right));
-					else forkPool.submit(new DirectoryNodeWorker(true, (LSDAbstractTree.DirectoryNode) dn.right));
+						submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.right));
+					else submit(new DirectoryNodeWorker(true, (LSDAbstractTree.DirectoryNode) dn.right));
 					n = dn;
 				}
 				
@@ -135,13 +168,13 @@ public class SBFork {
 						final LSDAbstractTree.DirectoryNode dn = n.getParent(); --depth;
 						assert (dn.right != n) : "Upward going not on the left side";
 						
-						if(dn.right instanceof LSDAbstractTree.BucketNode) forkPool.submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.right));
+						if(dn.right instanceof LSDAbstractTree.BucketNode) submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.right));
 						else
 						{
 							final int[] minlevels = new int[tree.dimensions];
 							final int dim = tree.getSplitAxis(depth);
 							minlevels[dim] = dn.location;
-							forkPool.submit(new PruneBucketWorker( (LSDAbstractTree.DirectoryNode)dn.right, depth+1, minlevels));
+							submit(new PruneBucketWorker( (LSDAbstractTree.DirectoryNode)dn.right, depth+1, minlevels));
 						}
 						n = dn;				
 					}
@@ -154,6 +187,9 @@ public class SBFork {
 			}
     	}
 		
+
+		
+
 		class PruneBucketWorker extends RecursiveAction
 		{
 			private static final long serialVersionUID = 3191824942893677558L;
@@ -175,15 +211,15 @@ public class SBFork {
 				boolean greater = true;
 				for(int i = 0; i < tree.dimensions; ++i) if(minlevels[i] <= tree.getLevel(nnzero.neighbor,i)) { greater = false; break; }
 				minlevels[dim] = oldvalue;
-				if(dn.left instanceof LSDAbstractTree.BucketNode) forkPool.submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.left));
-				else forkPool.submit(new PruneBucketWorker( ((LSDAbstractTree.DirectoryNode)dn.left), depth+1, minlevels));
+				if(dn.left instanceof LSDAbstractTree.BucketNode) submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.left));
+				else submit(new PruneBucketWorker( ((LSDAbstractTree.DirectoryNode)dn.left), depth+1, minlevels));
 				
 				if(!greater)
 				{
 					final int[] rightminlevels = minlevels.clone();
 					rightminlevels[dim] = dn.location;
-					if(dn.right instanceof LSDAbstractTree.BucketNode) forkPool.submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.right));
-					else forkPool.submit(new PruneBucketWorker( ((LSDAbstractTree.DirectoryNode)dn.right), depth+1, rightminlevels));
+					if(dn.right instanceof LSDAbstractTree.BucketNode) submit(new BucketNodeWorker(true, (LSDAbstractTree.BucketNode) dn.right));
+					else submit(new PruneBucketWorker( ((LSDAbstractTree.DirectoryNode)dn.right), depth+1, rightminlevels));
 				}
 			}
 		}
@@ -199,12 +235,21 @@ public class SBFork {
 	    synchronized(localSkylineQueue) 
 	    {
 	    	if(localSkylineQueue.isEmpty()) localSkylineQueue.add(localSkyline);
-	    	else a= localSkylineQueue.poll();
+	    	else a = localSkylineQueue.poll();
 	    }
-	    if(a != null) forkPool.submit(new SkylineMergeWorker(a, localSkyline));
+	    if(a != null) submit(new SkylineMergeWorker(a, localSkyline));
 	}
 	
 	
+	private void submit(ForkJoinTask<?> task) {
+		synchronized(forkPool) { forkPool.submit(task); }
+		
+	}
+	private void submit(Runnable task) {
+		synchronized(forkPool) { forkPool.submit(task); }
+	}
+
+
 	class SkylineMergeWorker implements Runnable
 	{
 		

@@ -23,7 +23,7 @@ public class LSDPruningTree extends LSDAbstractTree {
 	{
 		super(manager, firstElement);
 		pruningLevel = manager.getLevelInstance(firstElement, null).getPruningLevel();
-//		computeOverallLevel(firstElement); // needed to index this element with the levels mapping
+		computeOverallLevel(firstElement); // needed to index this element with the levels mapping
 	}
 	
 	private double pruningLevel;
@@ -74,13 +74,13 @@ public class LSDPruningTree extends LSDAbstractTree {
 			l[i] = (int) manager.getBasePref(i).level(manager.getAttributeSelector(i).evaluate(element, null, manager.getBasePref(i).getDomainType()), null);
 			level += l[i];
 		}
-//		levels.put(element.getIdentifier(), l);
+		levels.put(element.getIdentifier(), l);
 		return level;
 	}
-	/*
+	
 	
 	final private HashMap<Integer,Integer[]> levels = new HashMap<Integer,Integer[]>();
-	
+	/*
 	@Override
 	public int getLevel(final FlatLevelCombination element, int i)
 	{

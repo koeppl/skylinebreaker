@@ -53,7 +53,7 @@ public class SBSingleCNN {
 				nnzero.notifyAll();
 				while(nnzero.threadCount < processes)
 					nnzero.wait();
-			//	if(tree instanceof LSDPruningTree) ((LSDPruningTree)tree).computeOverallLevel(nnzero.neighbor); // hash the value of nnzero
+				if(tree instanceof LSDPruningTree) ((LSDPruningTree)tree).computeOverallLevel(nnzero.neighbor); // hash the value of nnzero
 			}
 		}
 		

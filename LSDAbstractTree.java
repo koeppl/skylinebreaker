@@ -8,7 +8,7 @@ import preference.exception.PreferenceException;
 import flatlc.levels.FlatLevelCombination;
 
 public abstract class LSDAbstractTree {
-	final static int BUCKETSIZE = 10;
+	final static int BUCKETSIZE = 10000;
 	
 	static interface Node
 	{
