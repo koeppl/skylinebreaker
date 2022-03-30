@@ -5,6 +5,17 @@ authors:
   given-names: "Dominik"
   orcid: "http://orcid.org/0000-0002-8721-4444"
 title: "Breaking skyline computation down to the metal: the skyline breaker algorithm"
-doi: 10.1145/2513591.2513637
 url: "https://github.com/koeppl/skylinebreaker"
+preferred-citation:
+  type: conference-paper
+  authors:
+  - family-names: "Köppl"
+    given-names: "Dominik"
+    orcid: "http://orcid.org/0000-0002-8721-4444"
+  doi: 10.1145/2513591.2513637
+  journal: "Proc. IDEAS"
+  start: 132 # First page number
+  end: 141 # Last page number
+  title: "Breaking skyline computation down to the metal: the skyline breaker algorithm"
+  year: 2013
 
